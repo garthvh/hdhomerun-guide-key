@@ -1,1 +1,21 @@
-[]
+[
+  {
+    "guid": "2e08612f-3c3f-449b-a672-9ccb56495f12",
+    "name": "HDHomeRun Guide Auth Sync",
+    "description": "Keeps the HDHomeRun XMLTV guide DeviceAuth key in sync with Jellyfin Live TV.",
+    "overview": "Periodically checks your configured HDHomeRun tuners for their current guide DeviceAuth key and updates the XMLTV listings provider URL if it changes.",
+    "owner": "garthvh",
+    "imageUrl": "",
+    "category": "Live TV",
+    "versions": [
+      {
+        "version": "1.2.0.0",
+        "changelog": "Default sync interval changed from 12 to 4 hours. Queue Jellyfin's Refresh Guide task automatically after updating the DeviceAuth key.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/garthvh/hdhomerun-guide-key/releases/download/v1.2.0.0/HDHomeRunAuthPlugin_1.2.0.0.zip",
+        "checksum": "98b116dfb678a4067706dd8338050f31295d4a4e888775c4cd02018628dd24aa",
+        "timestamp": "2026-07-16T07:42:00Z"
+      }
+    ]
+  }
+]
