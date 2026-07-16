@@ -1,0 +1,138 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**/*.md"]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build
+        run: >
+          dotnet build src/HDHomeRunAuthPlugin/HDHomeRunAuthPlugin.csproj
+          -c Release
+          -p:Version=${{ github.event.release.tag_name && github.event.release.tag_name || '0.0.0.0' }}
+
+      - name: Package
+        if: github.event_name == 'release'
+        run: |
+          PLUGIN_DIR="src/HDHomeRunAuthPlugin"
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          DLL="$PLUGIN_DIR/bin/Release/net9.0/HDHomeRunAuthPlugin.dll"
+          ZIP="HDHomeRunAuthPlugin_${VERSION}.zip"
+
+          mkdir -p artifacts
+          cp "$DLL" artifacts/
+          cd artifacts
+          zip "$ZIP" "HDHomeRunAuthPlugin.dll"
+          echo "ZIP_NAME=$ZIP" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+          CHECKSUM=$(sha256sum "$ZIP" | cut -d' ' -f1)
+          echo "CHECKSUM=$CHECKSUM" >> "$GITHUB_ENV"
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/${{ env.ZIP_NAME }}
+
+      - name: Update manifest
+        if: github.event_name == 'release'
+        run: |
+          PLUGIN_DIR="src/HDHomeRunAuthPlugin"
+          REPO_URL="https://github.com/${{ github.repository }}"
+          TAG="${{ github.event.release.tag_name }}"
+          ZIP_NAME="${{ env.ZIP_NAME }}"
+          VERSION="${{ env.VERSION }}"
+          CHECKSUM="${{ env.CHECKSUM }}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          SOURCE_URL="${REPO_URL}/releases/download/${TAG}/${ZIP_NAME}"
+
+          CHANGELOG=$(cat <<'CHANGELOG_EOF'
+          ${{ github.event.release.body }}
+          CHANGELOG_EOF
+          )
+
+          # Create version entry
+          NEW_VERSION=$(jq -n \
+            --arg version "$VERSION" \
+            --arg changelog "$CHANGELOG" \
+            --arg targetAbi "10.11.0.0" \
+            --arg sourceUrl "$SOURCE_URL" \
+            --arg checksum "$CHECKSUM" \
+            --arg timestamp "$TIMESTAMP" \
+            '{version: $version, changelog: $changelog, targetAbi: $targetAbi, sourceUrl: $sourceUrl, checksum: $checksum, timestamp: $timestamp}')
+
+          GUID="2e08612f-3c3f-449b-a672-9ccb56495f12"
+
+          if [ -s manifest.json ] && jq -e "type == \"array\"" manifest.json > /dev/null 2>&1; then
+            # manifest.json exists and is an array
+            if jq --arg guid "$GUID" 'any(.[]; .guid == $guid)' manifest.json > /dev/null 2>&1; then
+              # Plugin already in manifest — prepend new version
+              jq --arg guid "$GUID" \
+                --argjson newEntry "$NEW_VERSION" \
+                'map(if .guid == $guid then .versions = [$newEntry] + .versions else . end)' \
+                manifest.json > manifest_tmp.json
+            else
+              # Plugin not in manifest — add new entry
+              jq --arg guid "$GUID" \
+                --argjson newEntry "$NEW_VERSION" \
+                '. + [{
+                  "guid": $guid,
+                  "name": "HDHomeRun Guide Auth Sync",
+                  "description": "Keeps the HDHomeRun XMLTV guide DeviceAuth key in sync with Jellyfin Live TV.",
+                  "overview": "Periodically checks your configured HDHomeRun tuners for their current guide DeviceAuth key and updates the XMLTV listings provider URL if it changes.",
+                  "owner": "garthvh",
+                  "imageUrl": "",
+                  "category": "Live TV",
+                  "versions": [$newEntry]
+                }]' \
+                manifest.json > manifest_tmp.json
+            fi
+          else
+            # Empty or missing manifest — create fresh
+            echo "[]" | jq --arg guid "$GUID" \
+              --argjson newEntry "$NEW_VERSION" \
+              '. + [{
+                "guid": $guid,
+                "name": "HDHomeRun Guide Auth Sync",
+                "description": "Keeps the HDHomeRun XMLTV guide DeviceAuth key in sync with Jellyfin Live TV.",
+                "overview": "Periodically checks your configured HDHomeRun tuners for their current guide DeviceAuth key and updates the XMLTV listings provider URL if it changes.",
+                "owner": "garthvh",
+                "imageUrl": "",
+                "category": "Live TV",
+                "versions": [$newEntry]
+              }]' > manifest_tmp.json
+          fi
+
+          mv manifest_tmp.json manifest.json
+
+      - name: Commit manifest
+        if: github.event_name == 'release'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git diff --cached --quiet || git commit -m "Publish manifest for ${{ github.event.release.tag_name }}"
+          git push

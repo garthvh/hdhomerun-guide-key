@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HDHomeRun Guide Auth Sync</title>
+</head>
+<body>
+    <div id="HDHomeRunAuthPluginConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="HDHomeRunAuthPluginConfigForm">
+                    <div class="verticalSection">
+                        <h2>HDHomeRun Guide Auth Sync</h2>
+                        <p>
+                            Keeps the HDHomeRun XMLTV guide DeviceAuth key in sync with your
+                            Live TV listings provider. Runs as a scheduled task
+                            (Dashboard &gt; Scheduled Tasks &gt; Live TV).
+                        </p>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="UseConfiguredTunerHosts" />
+                            <span>Check tuner hosts already configured under Live TV &gt; Tuner Devices</span>
+                        </label>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel" for="ManualTunerUrls">Additional tuner base URLs (comma-separated, optional)</label>
+                        <input is="emby-input" type="text" id="ManualTunerUrls" placeholder="http://192.168.1.137" />
+                        <div class="fieldDescription">
+                            Use this if a tuner isn't already added as a Live TV tuner device,
+                            e.g. "http://192.168.1.137".
+                        </div>
+                    </div>
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <script type="text/javascript">
+            (function () {
+                var pluginId = "2e08612f-3c3f-449b-a672-9ccb56495f12";
+
+                function loadConfig(page) {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        page.querySelector("#UseConfiguredTunerHosts").checked = config.UseConfiguredTunerHosts;
+                        page.querySelector("#ManualTunerUrls").value = config.ManualTunerUrls || "";
+                        Dashboard.hideLoadingMsg();
+                    });
+                }
+
+                document.querySelector("#HDHomeRunAuthPluginConfigPage")
+                    .addEventListener("pageshow", function () {
+                        loadConfig(this);
+                    });
+
+                document.querySelector("#HDHomeRunAuthPluginConfigForm")
+                    .addEventListener("submit", function (e) {
+                        e.preventDefault();
+                        var page = this.closest("div[data-role='page']");
+                        Dashboard.showLoadingMsg();
+                        ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                            config.UseConfiguredTunerHosts = page.querySelector("#UseConfiguredTunerHosts").checked;
+                            config.ManualTunerUrls = page.querySelector("#ManualTunerUrls").value;
+                            ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                                Dashboard.processPluginConfigurationUpdateResult(result);
+                            });
+                        });
+                        return false;
+                    });
+            })();
+        </script>
+    </div>
+</body>
+</html>
