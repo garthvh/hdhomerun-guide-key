@@ -25,18 +25,24 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
+      - name: Resolve version
+        id: version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          TAG="${TAG#v}"
+          echo "value=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Build
         run: >
           dotnet build src/HDHomeRunAuthPlugin/HDHomeRunAuthPlugin.csproj
           -c Release
-          -p:Version=${{ github.event.release.tag_name && github.event.release.tag_name || '0.0.0.0' }}
+          -p:Version=${{ steps.version.outputs.value || '0.0.0.0' }}
 
       - name: Package
         if: github.event_name == 'release'
         run: |
           PLUGIN_DIR="src/HDHomeRunAuthPlugin"
-          VERSION="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION#v}"
+          VERSION="${{ steps.version.outputs.value }}"
           DLL="$PLUGIN_DIR/bin/Release/net9.0/HDHomeRunAuthPlugin.dll"
           ZIP="HDHomeRunAuthPlugin_${VERSION}.zip"
 
