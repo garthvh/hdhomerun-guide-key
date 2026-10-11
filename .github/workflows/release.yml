@@ -53,7 +53,8 @@ jobs:
           echo "ZIP_NAME=$ZIP" >> "$GITHUB_ENV"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
-          CHECKSUM=$(sha256sum "$ZIP" | cut -d' ' -f1)
+          # Jellyfin validates plugin archives against an MD5 checksum.
+          CHECKSUM=$(md5sum "$ZIP" | cut -d' ' -f1)
           echo "CHECKSUM=$CHECKSUM" >> "$GITHUB_ENV"
 
       - name: Upload to release

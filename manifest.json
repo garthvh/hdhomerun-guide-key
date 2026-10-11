@@ -13,7 +13,7 @@
         "changelog": "Default sync interval changed from 12 to 4 hours. Queue Jellyfin's Refresh Guide task automatically after updating the DeviceAuth key.",
         "targetAbi": "10.11.0.0",
         "sourceUrl": "https://github.com/garthvh/hdhomerun-guide-key/releases/download/v1.2.0.0/HDHomeRunAuthPlugin_1.2.0.0.zip",
-        "checksum": "98b116dfb678a4067706dd8338050f31295d4a4e888775c4cd02018628dd24aa",
+        "checksum": "9a75769aa8551e1c1b400cd9dc3cc4b4",
         "timestamp": "2026-07-16T07:42:00Z"
       }
     ]
